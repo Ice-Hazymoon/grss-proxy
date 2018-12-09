@@ -8,6 +8,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
+const PORT = process.env.PORT || 5000
 
 app.use(compression());
 app.use(cookieParser('miku'));
@@ -308,6 +309,6 @@ app.use(function(err, req, res, next) {
     res.status(500).send('Something broke!');
 });
 
-app.listen('3000', () => {
-    console.log('代理已启动');
+app.listen(PORT, () => {
+    console.log(`Listening on ${ PORT }`);
 });
