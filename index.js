@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const rp = require('request-promise');
-const Agent = require('socks5-https-client/lib/Agent');
+// const Agent = require('socks5-https-client/lib/Agent');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
 // const proxyURL = 'http://localhost:3000';
