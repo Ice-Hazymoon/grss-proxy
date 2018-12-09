@@ -1,0 +1,19 @@
+{
+  "name": "proxy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "add": "^2.0.6",
+    "cheerio": "^1.0.0-rc.2",
+    "compression": "^1.7.3",
+    "cookie-parser": "^1.4.3",
+    "express": "^4.16.4",
+    "puppeteer": "^1.11.0",
+    "puppeteer-core": "^1.11.0",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2",
+    "socks5-https-client": "^1.2.1",
+    "yarn": "^1.12.3"
+  }
+}
