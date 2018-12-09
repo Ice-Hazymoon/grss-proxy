@@ -3,7 +3,7 @@ const app = express();
 const rp = require('request-promise');
 const Agent = require('socks5-https-client/lib/Agent');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const proxyURL = 'http://localhost:3000';
 const fs = require('fs');
 const compression = require('compression');
@@ -135,7 +135,7 @@ app.get('/', async (req, res) => {
 
     // 开始解析页面
     console.log('开始解析页面')
-    const browser = await puppeteer.launch({executablePath: 'C://Users//Hazymoon//AppData//Local//CentBrowser//Application//chrome.exe'});
+    const browser = await puppeteer.launch();
     const page = await browser.newPage();
 
     // 设置UA
