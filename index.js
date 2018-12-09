@@ -142,7 +142,7 @@ app.get('/', async (req, res) => {
 
     // 开始解析页面
     console.log('开始解析页面')
-    const browser = await puppeteer.launch({args: ['--no-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
     const page = await browser.newPage();
 
     // 设置UA
