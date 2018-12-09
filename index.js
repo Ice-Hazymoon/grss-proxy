@@ -4,7 +4,7 @@ const rp = require('request-promise');
 const Agent = require('socks5-https-client/lib/Agent');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
-const proxyURL = 'http://localhost:3000';
+// const proxyURL = 'http://localhost:3000';
 const fs = require('fs');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
@@ -21,7 +21,7 @@ function deBase64(data){
 }
 
 // 代理css里的内容
-function proxyCss(CssText, origin, url, device){
+function proxyCss(proxyURL, CssText, origin, url, device){
     let proxyInlineCss = CssText.replace(/url\((.*?)\)/ig, (matches) => {
         let clippingUrl = /^url\((['"]?)(.*)\1\)$/.exec(matches);
         clippingUrl = clippingUrl ? clippingUrl[2] : "";
@@ -71,6 +71,11 @@ function createCache(filename, data, contentType, device){
     fs.writeFileSync(`./cache/${device}/${filename}`, data);
 }
 
+app.get('/test', (req, res) => {
+    console.log(req.headers.host)
+    res.send('test')
+})
+
 // 代理页面
 app.get('/', async (req, res) => {
     if(!req.query.url){
@@ -81,6 +86,7 @@ app.get('/', async (req, res) => {
     const url = deBase64(req.query.url);
     const origin = (new URL(url)).origin;
     const userAgent = req.headers['user-agent'];
+    const proxyURL = `http://${req.headers.host}`;
 
     // 判断URL是否合法
     const patternURL = /https?:\/\/[a-z0-9_.:]+\/[-a-z0-9_:@&?=+,.!/~*%$]*(\.(html|htm|shtml))?/;
@@ -218,12 +224,12 @@ app.get('/', async (req, res) => {
     })
     $('[style]').each(function(){
         const cssText = $(this).attr('style');
-        $(this).attr('style', proxyCss(cssText, origin, url, device));
+        $(this).attr('style', proxyCss(proxyURL, cssText, origin, url, device));
     })
     $('style').remove();
     $('script').remove();
     $('meta[property]').remove();
-    $('head').append(`<style type="text/css">${proxyCss(allCssText, origin, url, device)}</style>`);
+    $('head').append(`<style type="text/css">${proxyCss(proxyURL, allCssText, origin, url, device)}</style>`);
     // $('body').append(`<script src="https://cdnjs.loli.net/ajax/libs/vanilla-lazyload/10.19.0/lazyload.min.js"></script>`);
     $('body').append(`
         <script>
@@ -256,6 +262,7 @@ app.get('/res', async (req, res) => {
     let url = deBase64(req.query.url);
     let origin = deBase64(req.query.origin);
     const userAgent = req.headers['user-agent'];
+    const proxyURL = `http://${req.headers.host}`;
 
     // 判断是否是dataURL
     if(url.indexOf('data') === 0){
@@ -287,7 +294,7 @@ app.get('/res', async (req, res) => {
     if(contentType === 'text/css'){
         const cssText = Buffer.from(resources.body).toString();
         res.setHeader("Content-Type", contentType);
-        res.send(proxyCss(cssText, origin, url, device));
+        res.send(proxyCss(proxyURL, cssText, origin, url, device));
         return false;
     }
     res.setHeader("Content-Type", contentType);

@@ -14,5 +14,8 @@
     "request-promise": "^4.2.2",
     "socks5-https-client": "^1.2.1",
     "yarn": "^1.12.3"
+  },
+  "scripts": {
+    "start": "node index"
   }
 }
