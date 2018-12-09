@@ -122,11 +122,11 @@ app.get('/', async (req, res) => {
     // 处理重定向
     const aHtml = await rp.get(url, {
         resolveWithFullResponse: true,
-        agentClass: Agent,
-        agentOptions: {
-            socksHost: '127.0.0.1',
-            socksPort: 1080
-        },
+        // agentClass: Agent,
+        // agentOptions: {
+        //     socksHost: '127.0.0.1',
+        //     socksPort: 1080
+        // },
         headers: {
             'User-Agent': userAgent
         }
@@ -277,11 +277,11 @@ app.get('/res', async (req, res) => {
 
     // 请求资源
     const resources = await rp.get(url, {
-        agentClass: Agent,
-        agentOptions: {
-            socksHost: '127.0.0.1',
-            socksPort: 1080
-        },
+        // agentClass: Agent,
+        // agentOptions: {
+        //     socksHost: '127.0.0.1',
+        //     socksPort: 1080
+        // },
         headers: {
             'User-Agent': userAgent
         },
