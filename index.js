@@ -1,24 +1,44 @@
 const express = require('express');
-const app = express();
 const rp = require('request-promise');
-// const Agent = require('socks5-https-client/lib/Agent');
+const Agent = require('socks5-https-client/lib/Agent');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
-// const proxyURL = 'http://localhost:3000';
+const del = require('del');
+const Base64 = require('js-base64').Base64;
 const fs = require('fs');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5000;
+const app = express();
+const enableProxy = process.argv.splice(2).includes('-proxy');
+const schedule = require('node-schedule');
+
+if(enableProxy){
+    console.log('启用酸酸乳代理');
+}
+
+schedule.scheduleJob('00 */1 * * *', function(){
+    cleanCache().catch(() => {});
+});
 
 app.use(compression());
 app.use(cookieParser('miku'));
 
-function enBase64(data){
-    return Buffer.from(data).toString('base64');
-}
 
-function deBase64(data){
-    return Buffer.from(data, 'base64').toString();
+// 清除缓存
+function cleanCache(){
+    console.log('执行清除缓存任务');
+    return new Promise(async (resolve, reject) => {
+        try {
+            await del(['./cacheData.json', './cache']);
+        } catch (error) {
+            if(error){
+                reject(error);
+                console.log('清除缓存失败\n' + error);
+            }
+        }
+        resolve();
+    })
 }
 
 // 代理css里的内容
@@ -27,7 +47,7 @@ function proxyCss(proxyURL, CssText, origin, url, device){
         let clippingUrl = /^url\((['"]?)(.*)\1\)$/.exec(matches);
         clippingUrl = clippingUrl ? clippingUrl[2] : "";
         const newUrl = (new URL(clippingUrl, url)).href;
-        return `url("${proxyURL}/res/?url=${enBase64(newUrl)}&origin=${origin}&device=${device}")`;
+        return `url("/res/?url=${Base64.encode(newUrl)}&origin=${origin}&device=${device}")`;
     })
     return proxyInlineCss;
 }
@@ -72,9 +92,16 @@ function createCache(filename, data, contentType, device){
     fs.writeFileSync(`./cache/${device}/${filename}`, data);
 }
 
-app.get('/test', (req, res) => {
-    console.log(req.headers.host)
-    res.send('test')
+app.get('/clean', async (req, res) => {
+    try {
+        await cleanCache();
+    } catch (error) {
+        if(error){
+            res.send('清除缓存失败\n' + error);
+            return false;
+        }
+    }
+    res.send('清除成功');
 })
 
 // 代理页面
@@ -83,11 +110,11 @@ app.get('/', async (req, res) => {
         res.send('200')
         return false;
     }
+
     // 相关参数
-    const url = deBase64(req.query.url);
-    const origin = (new URL(url)).origin;
+    const url = Base64.decode(req.query.url);
     const userAgent = req.headers['user-agent'];
-    const proxyURL = `http://${req.headers.host}`;
+    const proxyURL = `https://${req.headers.host}`;
 
     // 判断URL是否合法
     const patternURL = /https?:\/\/[a-z0-9_.:]+\/[-a-z0-9_:@&?=+,.!/~*%$]*(\.(html|htm|shtml))?/;
@@ -95,6 +122,8 @@ app.get('/', async (req, res) => {
         res.send('200')
         return false;
     }
+
+    const origin = (new URL(url)).origin;
 
     // 首次访问获取宽高
     const _w = parseInt(req.cookies._w);
@@ -120,20 +149,27 @@ app.get('/', async (req, res) => {
     const device = _w <= 700 ? 'phone' : 'pc';
 
     // 处理重定向
-    const aHtml = await rp.get(url, {
+    
+    const aHtml = await rp.get(url, enableProxy ? {
         resolveWithFullResponse: true,
-        // agentClass: Agent,
-        // agentOptions: {
-        //     socksHost: '127.0.0.1',
-        //     socksPort: 1080
-        // },
+        agentClass: Agent,
+        agentOptions: {
+            socksHost: '127.0.0.1',
+            socksPort: 1080
+        },
+        headers: {
+            'User-Agent': userAgent
+        }
+    } : {
+        resolveWithFullResponse: true,
         headers: {
             'User-Agent': userAgent
         }
     })
 
     // 判断是否有缓存
-    let cache = getCache(enBase64(aHtml.request.uri.href), device);
+    
+    let cache = getCache(Base64.encode(aHtml.request.uri.href), device);
     if(cache.code === 200){
         res.contentType(cache.contentType);
         res.send(cache.data);
@@ -208,14 +244,14 @@ app.get('/', async (req, res) => {
     // 处理dom里的资源链接
     $('img').each(function(){
         const src = $(this).attr('src');
-        if(src) $(this).attr('src', `${proxyURL}/res/?url=${enBase64(src)}&origin=${origin}&device=${device}`);
+        if(src) $(this).attr('src', `/res/?url=${Base64.encode(src)}&origin=${origin}&device=${device}`);
         $(this).removeAttr('srcset');
         $(this).addClass('lazyyyyyy');
         // $(this).removeAttr('src');
     })
     $('link[rel="stylesheet"]').each(function(){
         const src = $(this).attr('href');
-        if(src) $(this).attr('href',`${proxyURL}/res/?url=${enBase64(src)}&origin=${origin}&device=${device}`);
+        if(src) $(this).attr('href',`/res/?url=${Base64.encode(src)}&origin=${origin}&device=${device}`);
     })
     $('link').each(function(){
         const attr = $(this).attr('rel');
@@ -244,7 +280,7 @@ app.get('/', async (req, res) => {
     `)
 
     res.send($.html());
-    createCache(enBase64(page.url()), $.html(), 'text/html', device);
+    createCache(Base64.encode(page.url()), $.html(), 'text/html', device);
 });
 
 // 代理资源文件
@@ -260,10 +296,10 @@ app.get('/res', async (req, res) => {
     }
 
     // 获取相关参数
-    let url = deBase64(req.query.url);
-    let origin = deBase64(req.query.origin);
+    let url = Base64.decode(req.query.url);
+    let origin = Base64.decode(req.query.origin);
     const userAgent = req.headers['user-agent'];
-    const proxyURL = `http://${req.headers.host}`;
+    const proxyURL = `https://${req.headers.host}`;
 
     // 判断是否是dataURL
     if(url.indexOf('data') === 0){
@@ -276,12 +312,18 @@ app.get('/res', async (req, res) => {
     }
 
     // 请求资源
-    const resources = await rp.get(url, {
-        // agentClass: Agent,
-        // agentOptions: {
-        //     socksHost: '127.0.0.1',
-        //     socksPort: 1080
-        // },
+    const resources = await rp.get(url, enableProxy ? {
+        agentClass: Agent,
+        agentOptions: {
+            socksHost: '127.0.0.1',
+            socksPort: 1080
+        },
+        headers: {
+            'User-Agent': userAgent
+        },
+        resolveWithFullResponse: true,
+        encoding: null
+    } : {
         headers: {
             'User-Agent': userAgent
         },
